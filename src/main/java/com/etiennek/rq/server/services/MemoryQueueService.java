@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jvnet.hk2.annotations.Service;
+
 import rx.Observable;
 
 import com.etiennek.rq.api.QueueService;
@@ -19,6 +21,7 @@ import com.google.common.util.concurrent.AbstractScheduledService;
 
 import static com.google.common.base.Preconditions.*;
 
+@Service
 public class MemoryQueueService extends AbstractScheduledService implements QueueService {
 
   private final AtomicLong heldIdAutoInc = new AtomicLong();
@@ -40,7 +43,8 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
       return Observable.from(Optional.<HeldMessage> absent());
     }
     String id = Long.toString(heldIdAutoInc.incrementAndGet());
-    heldCache.put(id, new HeldContainer(new Date().getTime() + secondsToHold * 1000, queueName, messageBody));
+    heldCache.put(id, new HeldContainer(new Date().getTime() + secondsToHold * 1000, queueName,
+        messageBody));
     return Observable.from(Optional.of(new HeldMessage(id, messageBody)));
   }
 

@@ -1,47 +1,38 @@
 package com.etiennek.rq.server;
 
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 
-import java.io.IOException;
-import java.net.URI;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.webapp.WebAppContext;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
-/**
- * Main class.
- * 
- */
 public class Main {
-  // Base URI the Grizzly HTTP server will listen on
-  public static final String BASE_URI = "http://localhost:8080/myapp/";
 
-  /**
-   * Starts Grizzly HTTP server exposing JAX-RS resources defined in this
-   * application.
-   * 
-   * @return Grizzly HTTP server.
-   */
-  public static HttpServer startServer() {
-    // create a resource config that scans for JAX-RS resources and providers
-    // in com.etiennek.rq package
-    final ResourceConfig rc = new ResourceConfig().packages("com.etiennek.rq.server.resources");
+  public static void main(String[] args) throws Exception {
+    LogManager.getLogManager().reset();
+    SLF4JBridgeHandler.install();
+    java.util.logging.Logger.getLogger("global").setLevel(Level.FINEST);
 
-    // create and start a new instance of grizzly http server
-    // exposing the Jersey application at BASE_URI
-    return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
+    String webPort = System.getenv("PORT");
+    if (webPort == null || webPort.isEmpty()) {
+      webPort = "8080";
+    }
+
+    final Server server = new Server(Integer.valueOf(webPort));
+    final WebAppContext root = new WebAppContext();
+
+    root.setContextPath("/");
+    root.setParentLoaderPriority(true);
+
+    final String webappDirLocation = "src/main/webapp/";
+    root.setDescriptor(webappDirLocation + "/WEB-INF/web.xml");
+    root.setResourceBase(webappDirLocation);
+
+    server.setHandler(root);
+
+    server.start();
+    server.join();
   }
 
-  /**
-   * Main method.
-   * 
-   * @param args
-   * @throws IOException
-   */
-  public static void main(String[] args) throws IOException {
-    final HttpServer server = startServer();
-    System.out.println(String.format("Jersey app started with WADL available at "
-        + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
-    System.in.read();
-    server.shutdownNow();
-  }
 }
