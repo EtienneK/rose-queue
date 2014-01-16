@@ -5,19 +5,16 @@ import static java.lang.System.*;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.jvnet.hk2.annotations.Service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import rx.Observable;
 
 import com.etiennek.rq.api.QueueService;
-import com.etiennek.rq.api.dtos.HeldMessage;
 import com.etiennek.rq.api.dtos.Message;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractScheduledService;
@@ -25,36 +22,30 @@ import com.google.common.util.concurrent.AbstractScheduledService;
 import static com.google.common.base.Preconditions.*;
 
 @Service
-public class MemoryQueueService extends AbstractScheduledService implements QueueService {
+public class InMemoryQueueService extends AbstractScheduledService implements QueueService {
 
-  private final Logger logger = LoggerFactory.getLogger(MemoryQueueService.class);
-
-  private final AtomicLong heldIdAutoInc = new AtomicLong();
-
-  private final ConcurrentHashMap<String, ConcurrentLinkedQueue<String>> queues = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, ConcurrentLinkedQueue<Message>> queues = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, HeldContainer> heldCache = new ConcurrentHashMap<>();
 
-  public MemoryQueueService() {
+  public InMemoryQueueService() {
     start();
   }
 
   @Override
-  public Observable<Optional<HeldMessage>> hold(String queueName, int secondsToHold) {
+  public Observable<Optional<Message>> hold(String queueName, int secondsToHold) {
     checkNotNull(queueName, "queueName");
 
-    Queue<String> queue = queues.get(queueName);
+    Queue<Message> queue = queues.get(queueName);
     if (queue == null) {
-      return Observable.from(Optional.<HeldMessage> absent());
+      return Observable.from(Optional.<Message> absent());
     }
 
-    String messageBody = queue.poll();
-    if (messageBody == null) {
-      return Observable.from(Optional.<HeldMessage> absent());
+    Message message = queue.poll();
+    if (message == null) {
+      return Observable.from(Optional.<Message> absent());
     }
-    String id = Long.toString(heldIdAutoInc.incrementAndGet());
-    heldCache.put(id, new HeldContainer(currentTimeMillis() + secondsToHold * 1000, queueName,
-        messageBody));
-    return Observable.from(Optional.of(new HeldMessage(id, messageBody)));
+    heldCache.put(message.getId(), new HeldContainer(currentTimeMillis() + secondsToHold * 1000, queueName, message));
+    return Observable.from(Optional.of(message));
   }
 
   @Override
@@ -62,8 +53,10 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
     checkNotNull(queueName, "queueName");
     checkNotNull(message, "message");
 
-    queues.putIfAbsent(queueName, new ConcurrentLinkedQueue<String>());
-    queues.get(queueName).add(message.getMessageBody());
+    if (!queues.contains(queueName)) {
+      queues.putIfAbsent(queueName, new ConcurrentLinkedQueue<Message>());
+    }
+    queues.get(queueName).add(message.createCopyWithId(UUID.randomUUID().toString()));
     return Observable.from((Void) null);
   }
 
@@ -88,8 +81,7 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
         if (container != null && (currentTimeMillis() > container.getHoldUntil())) {
           container = heldCache.remove(id);
           if (container != null) {
-            logger.info("Returning message to queue");
-            add(container.getQueueName(), new Message(container.getMessageBody()));
+            add(container.getQueueName(), container.getMessage());
           }
         }
       } catch (NoSuchElementException e) {
@@ -105,12 +97,12 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
   private static class HeldContainer {
     private long holdUntil;
     private String queueName;
-    private String messageBody;
+    private Message message;
 
-    public HeldContainer(long holdUntil, String queueName, String messageBody) {
+    public HeldContainer(long holdUntil, String queueName, Message message) {
       this.holdUntil = holdUntil;
       this.queueName = queueName;
-      this.messageBody = messageBody;
+      this.message = message;
     }
 
     public long getHoldUntil() {
@@ -121,8 +113,8 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
       return queueName;
     }
 
-    public String getMessageBody() {
-      return messageBody;
+    public Message getMessage() {
+      return message;
     }
 
   }

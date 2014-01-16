@@ -5,13 +5,13 @@ import javax.inject.Singleton;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 
 import com.etiennek.rq.api.QueueService;
-import com.etiennek.rq.server.services.MemoryQueueService;
+import com.etiennek.rq.server.services.InMemoryQueueService;
 
 public class MainBinder extends AbstractBinder {
 
   @Override
   protected void configure() {
-    bind(MemoryQueueService.class).to(QueueService.class).in(Singleton.class);
+    bind(InMemoryQueueService.class).to(QueueService.class).in(Singleton.class);
   }
 
 }

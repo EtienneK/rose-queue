@@ -16,10 +16,11 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 public class RoseQueueApplication extends ResourceConfig {
 
+  private static Server server;
+
   public RoseQueueApplication() {
     register(new MainBinder());
-    packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage()
-        .getName());
+    packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage().getName());
   }
 
   public static void main(String[] args) throws Exception {
@@ -27,21 +28,29 @@ public class RoseQueueApplication extends ResourceConfig {
     SLF4JBridgeHandler.install();
     java.util.logging.Logger.getLogger("global").setLevel(Level.FINEST);
 
-    final Server server = createServer();
+    server = createServer();
 
-    final WebAppContext root = new WebAppContext();
+    WebAppContext webAppContext = new WebAppContext();
 
-    root.setContextPath("/");
-    root.setParentLoaderPriority(true);
+    webAppContext.setContextPath("/");
+    webAppContext.setParentLoaderPriority(true);
 
     final String webappDirLocation = "src/main/webapp/";
-    root.setDescriptor(webappDirLocation + "/WEB-INF/web.xml");
-    root.setResourceBase(webappDirLocation);
+    webAppContext.setDescriptor(webappDirLocation + "/WEB-INF/web.xml");
+    webAppContext.setResourceBase(webappDirLocation);
 
-    server.setHandler(root);
+    server.setHandler(webAppContext);
 
+    start();
+  }
+
+  public static void start() throws Exception {
     server.start();
     server.join();
+  }
+
+  public static void stop() throws Exception {
+    server.stop();
   }
 
   private static Server createServer() {
