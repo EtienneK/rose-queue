@@ -1,6 +1,7 @@
 package com.etiennek.rq.server.services;
 
-import java.util.Date;
+import static java.lang.System.*;
+
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
@@ -10,6 +11,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jvnet.hk2.annotations.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import rx.Observable;
 
@@ -24,10 +27,16 @@ import static com.google.common.base.Preconditions.*;
 @Service
 public class MemoryQueueService extends AbstractScheduledService implements QueueService {
 
+  private final Logger logger = LoggerFactory.getLogger(MemoryQueueService.class);
+
   private final AtomicLong heldIdAutoInc = new AtomicLong();
 
   private final ConcurrentHashMap<String, ConcurrentLinkedQueue<String>> queues = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, HeldContainer> heldCache = new ConcurrentHashMap<>();
+
+  public MemoryQueueService() {
+    start();
+  }
 
   @Override
   public Observable<Optional<HeldMessage>> hold(String queueName, int secondsToHold) {
@@ -43,7 +52,7 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
       return Observable.from(Optional.<HeldMessage> absent());
     }
     String id = Long.toString(heldIdAutoInc.incrementAndGet());
-    heldCache.put(id, new HeldContainer(new Date().getTime() + secondsToHold * 1000, queueName,
+    heldCache.put(id, new HeldContainer(currentTimeMillis() + secondsToHold * 1000, queueName,
         messageBody));
     return Observable.from(Optional.of(new HeldMessage(id, messageBody)));
   }
@@ -76,9 +85,10 @@ public class MemoryQueueService extends AbstractScheduledService implements Queu
       try {
         String id = iter.next();
         HeldContainer container = heldCache.get(id);
-        if (container != null && (new Date().getTime() > container.getHoldUntil())) {
+        if (container != null && (currentTimeMillis() > container.getHoldUntil())) {
           container = heldCache.remove(id);
           if (container != null) {
+            logger.info("Returning message to queue");
             add(container.getQueueName(), new Message(container.getMessageBody()));
           }
         }

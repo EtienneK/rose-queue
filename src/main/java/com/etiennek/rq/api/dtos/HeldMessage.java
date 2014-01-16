@@ -2,9 +2,16 @@ package com.etiennek.rq.api.dtos;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlRootElement;
+
+@XmlRootElement
 public class HeldMessage extends Message {
 
   private String id;
+
+  protected HeldMessage() {
+  }
 
   public HeldMessage(String id, String messageBody) {
     super(messageBody);
@@ -14,6 +21,7 @@ public class HeldMessage extends Message {
     this.id = id;
   }
 
+  @XmlAttribute
   public String getId() {
     return id;
   }

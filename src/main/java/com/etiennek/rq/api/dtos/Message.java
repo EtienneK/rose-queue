@@ -2,15 +2,23 @@ package com.etiennek.rq.api.dtos;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlRootElement;
+
+@XmlRootElement
 public class Message {
 
   private String messageBody;
+
+  protected Message() {
+  }
 
   public Message(String messageBody) {
     checkNotNull(messageBody, "messageBody");
     this.messageBody = messageBody;
   }
 
+  @XmlAttribute
   public String getMessageBody() {
     return messageBody;
   }
