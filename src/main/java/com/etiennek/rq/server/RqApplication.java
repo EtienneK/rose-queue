@@ -20,15 +20,25 @@ public class RqApplication extends ResourceConfig {
 
   public RqApplication() {
     register(new MainBinder());
-    packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage().getName());
+    packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage()
+        .getName());
   }
 
   public static void main(String[] args) throws Exception {
+    String port = System.getenv("PORT");
+    if (port == null || port.isEmpty()) {
+      port = "8080";
+    }
+
+    start(Integer.parseInt(port));
+  }
+
+  public static void start(int port) throws Exception {
     LogManager.getLogManager().reset();
     SLF4JBridgeHandler.install();
     java.util.logging.Logger.getLogger("global").setLevel(Level.FINEST);
 
-    server = createServer();
+    server = createServer(port);
 
     WebAppContext webAppContext = new WebAppContext();
 
@@ -41,10 +51,6 @@ public class RqApplication extends ResourceConfig {
 
     server.setHandler(webAppContext);
 
-    start();
-  }
-
-  public static void start() throws Exception {
     server.start();
     server.join();
   }
@@ -53,7 +59,7 @@ public class RqApplication extends ResourceConfig {
     server.stop();
   }
 
-  private static Server createServer() {
+  private static Server createServer(int port) {
     int acceptors = Runtime.getRuntime().availableProcessors() / 2;
     int selectors = Runtime.getRuntime().availableProcessors();
     int workers = Runtime.getRuntime().availableProcessors();
@@ -62,13 +68,8 @@ public class RqApplication extends ResourceConfig {
 
     Server server = new Server(new QueuedThreadPool(numberOfThreads, numberOfThreads));
 
-    String port = System.getenv("PORT");
-    if (port == null || port.isEmpty()) {
-      port = "8080";
-    }
-
     ServerConnector connector = new ServerConnector(server, acceptors, selectors);
-    connector.setPort(Integer.valueOf(port));
+    connector.setPort(port);
     server.setConnectors(new Connector[] { connector });
 
     return server;

@@ -67,4 +67,9 @@ public class Message {
     return true;
   }
 
+  @Override
+  public String toString() {
+    return "Message [id=" + id + ", messageBody=" + messageBody + "]";
+  }
+
 }
