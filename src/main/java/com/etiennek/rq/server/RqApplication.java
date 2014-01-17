@@ -14,11 +14,11 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 import com.etiennek.rq.server.binders.MainBinder;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
-public class RoseQueueApplication extends ResourceConfig {
+public class RqApplication extends ResourceConfig {
 
   private static Server server;
 
-  public RoseQueueApplication() {
+  public RqApplication() {
     register(new MainBinder());
     packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage().getName());
   }
