@@ -8,7 +8,10 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import javax.inject.Inject;
 
 import org.jvnet.hk2.annotations.Service;
 
@@ -24,10 +27,14 @@ import static com.google.common.base.Preconditions.*;
 @Service
 public class InMemoryQueueService extends AbstractScheduledService implements QueueService {
 
+  private final ExecutorService executorService;
+
   private final ConcurrentHashMap<String, ConcurrentLinkedQueue<Message>> queues = new ConcurrentHashMap<>();
   private final ConcurrentHashMap<String, HeldContainer> heldCache = new ConcurrentHashMap<>();
 
-  public InMemoryQueueService() {
+  @Inject
+  public InMemoryQueueService(ExecutorService executorService) {
+    this.executorService = executorService;
     start();
   }
 

@@ -1,11 +1,14 @@
 package com.etiennek.rq.server;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -13,15 +16,20 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.etiennek.rq.server.binders.MainBinder;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+import com.google.common.util.concurrent.MoreExecutors;
 
 public class RqApplication extends ResourceConfig {
 
   private static Server server;
+  private static ExecutorService executorService;
 
   public RqApplication() {
-    register(new MainBinder());
-    packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage()
-        .getName());
+    if (executorService == null) {
+      throw new NullPointerException(
+          "ExecutorService is null. Are you running this as a WAR? Because that is not supported yet");
+    }
+    register(new MainBinder(executorService));
+    packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage().getName());
   }
 
   public static void main(String[] args) throws Exception {
@@ -66,7 +74,10 @@ public class RqApplication extends ResourceConfig {
 
     int numberOfThreads = acceptors + selectors + workers;
 
-    Server server = new Server(new QueuedThreadPool(numberOfThreads, numberOfThreads));
+    executorService = Executors.newFixedThreadPool(numberOfThreads);
+    ExecutorThreadPool threadPool = new ExecutorThreadPool(executorService);
+
+    Server server = new Server(threadPool);
 
     ServerConnector connector = new ServerConnector(server, acceptors, selectors);
     connector.setPort(port);
