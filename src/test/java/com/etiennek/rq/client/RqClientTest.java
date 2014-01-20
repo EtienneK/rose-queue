@@ -12,86 +12,80 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import rx.Observable;
 import rx.util.functions.Action1;
+import rx.util.functions.Func1;
 
 import com.etiennek.rq.api.dtos.Message;
-import com.etiennek.rq.server.RqApplication;
+import com.etiennek.rq.server.AbstractIntegrationTest;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 
-public class RqClientTest {
-
-  private static final int PORT = 7357;
-  private static final String BASE_URI = "http://localhost:" + PORT;
+public class RqClientTest extends AbstractIntegrationTest {
 
   private static RqClient client;
 
   @BeforeClass
   public static void initStatic() throws Exception {
+    startServer();
     client = new RqClient(BASE_URI);
-    new Thread() {
-      public void run() {
-        try {
-          RqApplication.start(PORT);
-        } catch (Exception e) {
-          Throwables.propagate(e);
-        }
-      };
-    }.start();
-    Thread.sleep(3000);
   }
 
   @AfterClass
   public static void destroyStatic() throws Exception {
-    RqApplication.stop();
+    stopServer();
     client.close();
   }
 
   @Test
   public void test() throws InterruptedException {
     final AtomicInteger count = new AtomicInteger();
-    final int numberOfRuns = 1;
+    final int numberOfRuns = 10;
 
     final String queueName = "test.queue";
     final String messageBody = "This is a test message you all :D";
 
-    final Action1<Optional<Message>> sequence4 = new Action1<Optional<Message>>() {
-      @Override
-      public void call(Optional<Message> t1) {
-        Assert.assertFalse(t1.isPresent());
-        count.incrementAndGet();
-      }
-    };
-
-    final Action1<Void> sequence3 = new Action1<Void>() {
-      @Override
-      public void call(Void t1) {
-        try {
-          Thread.sleep(3000);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        client.hold(queueName, 60).subscribe(sequence4);
-      }
-    };
-
-    final Action1<Optional<Message>> sequence2 = new Action1<Optional<Message>>() {
-      @Override
-      public void call(Optional<Message> t1) {
-        Assert.assertEquals(messageBody, t1.get().getMessageBody());
-        client.deleteHeldMessage(t1.get().getId()).subscribe(sequence3);
-      }
-    };
-
-    final Action1<Void> sequence1 = new Action1<Void>() {
-      @Override
-      public void call(Void t1) {
-        client.hold(queueName, 2).subscribe(sequence2);
-      }
-    };
-
     for (int i = 0; i < numberOfRuns; ++i) {
-      client.add(queueName, new Message(messageBody)).subscribe(sequence1);
+
+      // ADD a message to the queue
+      client.add(queueName, new Message(messageBody)).flatMap(new Func1<Void, Observable<Optional<Message>>>() {
+        // and then HOLD it
+        @Override
+        public Observable<Optional<Message>> call(Void t1) {
+          return client.hold(queueName, 2);
+        }
+      })
+
+      .flatMap(new Func1<Optional<Message>, Observable<Void>>() {
+        // DELETE the held message
+        @Override
+        public Observable<Void> call(Optional<Message> t1) {
+          Assert.assertEquals(messageBody, t1.get().getMessageBody());
+          return client.deleteHeldMessage(t1.get().getId());
+        }
+      })
+
+      .flatMap(new Func1<Void, Observable<Optional<Message>>>() {
+        // HOLD another message
+        @Override
+        public Observable<Optional<Message>> call(Void t1) {
+          try {
+            Thread.sleep(3000);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+          return client.hold(queueName, 60);
+        }
+      })
+
+      .subscribe(new Action1<Optional<Message>>() {
+        // there should be NO messages to HOLD
+        @Override
+        public void call(Optional<Message> t1) {
+          Assert.assertFalse(t1.isPresent());
+          count.incrementAndGet();
+        }
+      }, new OnErrorAction());
+
     }
 
     await().atMost(4, SECONDS).until(new Callable<Boolean>() {
