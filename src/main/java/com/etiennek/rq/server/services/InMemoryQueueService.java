@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.inject.Inject;
 
@@ -27,14 +28,12 @@ import static com.google.common.base.Preconditions.*;
 @Service
 public class InMemoryQueueService extends AbstractScheduledService implements QueueService {
 
-  private final ExecutorService executorService;
-
   private final ConcurrentHashMap<String, ConcurrentLinkedQueue<Message>> queues = new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<String, HeldContainer> heldCache = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<String, HeldContainer> heldCache = new ConcurrentHashMap<>(1024);
 
-  @Inject
-  public InMemoryQueueService(ExecutorService executorService) {
-    this.executorService = executorService;
+  private AtomicLong idIncrementer = new AtomicLong();
+
+  public InMemoryQueueService() {
     start();
   }
 
@@ -51,7 +50,13 @@ public class InMemoryQueueService extends AbstractScheduledService implements Qu
     if (message == null) {
       return Observable.from(Optional.<Message> absent());
     }
-    heldCache.put(message.getId(), new HeldContainer(currentTimeMillis() + secondsToHold * 1000, queueName, message));
+
+    HeldContainer container = heldCache.put(message.getId(), new HeldContainer(currentTimeMillis() + secondsToHold
+        * 1000, queueName, message));
+    if (container != null) {
+      throw new IllegalStateException("Message is already held. Message ID: " + message.getId());
+    }
+
     return Observable.from(Optional.of(message));
   }
 
@@ -60,17 +65,19 @@ public class InMemoryQueueService extends AbstractScheduledService implements Qu
     checkNotNull(queueName, "queueName");
     checkNotNull(message, "message");
 
-    if (!queues.contains(queueName)) {
+    if (!queues.containsKey(queueName)) {
       queues.putIfAbsent(queueName, new ConcurrentLinkedQueue<Message>());
     }
-    queues.get(queueName).add(message.createCopyWithId(UUID.randomUUID().toString()));
+    String id = Long.toString(idIncrementer.incrementAndGet());
+    queues.get(queueName).add(message.createCopyWithId(id));
+    
     return Observable.from((Void) null);
   }
 
   @Override
   public Observable<Void> deleteHeldMessage(String id) throws NoSuchElementException {
     checkNotNull(id, "id");
-
+    
     HeldContainer container = heldCache.remove(id);
     if (container == null) {
       throw new NoSuchElementException("No HeldMessage with ID " + id);

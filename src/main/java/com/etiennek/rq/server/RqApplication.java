@@ -16,7 +16,6 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.etiennek.rq.server.binders.MainBinder;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-import com.google.common.util.concurrent.MoreExecutors;
 
 public class RqApplication extends ResourceConfig {
 
@@ -24,10 +23,10 @@ public class RqApplication extends ResourceConfig {
   private static ExecutorService executorService;
 
   public RqApplication() {
-    if (executorService == null) {
-      throw new NullPointerException(
-          "ExecutorService is null. Are you running this as a WAR? Because that is not supported yet");
-    }
+    //if (executorService == null) {
+    //  throw new NullPointerException(
+    //      "ExecutorService is null. Are you running this as a WAR? Because that is not supported yet");
+    //}
     register(new MainBinder(executorService));
     packages(getClass().getPackage().getName(), JacksonJaxbJsonProvider.class.getPackage().getName());
   }
@@ -74,10 +73,10 @@ public class RqApplication extends ResourceConfig {
 
     int numberOfThreads = acceptors + selectors + workers;
 
-    executorService = Executors.newFixedThreadPool(numberOfThreads);
-    ExecutorThreadPool threadPool = new ExecutorThreadPool(executorService);
+    // executorService = Executors.newFixedThreadPool(numberOfThreads);
+    // ExecutorThreadPool threadPool = new ExecutorThreadPool(executorService);
 
-    Server server = new Server(threadPool);
+    Server server = new Server(new QueuedThreadPool(numberOfThreads, numberOfThreads));
 
     ServerConnector connector = new ServerConnector(server, acceptors, selectors);
     connector.setPort(port);

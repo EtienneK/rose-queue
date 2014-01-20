@@ -19,7 +19,7 @@ public class MainBinder extends AbstractBinder {
 
   @Override
   protected void configure() {
-    bind(executorService).to(ExecutorService.class);
+    //bind(executorService).to(ExecutorService.class);
     bind(InMemoryQueueService.class).to(QueueService.class).in(Singleton.class);
   }
 
