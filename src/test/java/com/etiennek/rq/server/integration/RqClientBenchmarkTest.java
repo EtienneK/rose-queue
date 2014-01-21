@@ -1,7 +1,6 @@
 package com.etiennek.rq.server.integration;
 
 import static com.jayway.awaitility.Awaitility.await;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,8 +37,8 @@ public class RqClientBenchmarkTest extends AbstractIntegrationTest {
 
   @AfterClass
   public static void destroyStatic() throws Exception {
-    stopServer();
     client.close();
+    stopServer();
   }
 
   @Before
@@ -53,7 +52,7 @@ public class RqClientBenchmarkTest extends AbstractIntegrationTest {
   @Test
   public void test() throws InterruptedException {
     final AtomicInteger count = new AtomicInteger();
-    final int numberOfRuns = 1000;
+    final int numberOfRuns = 500;
 
     final String queueName = "test.queue";
     final String messageBody = "This is a test message you all :D";
@@ -91,6 +90,7 @@ public class RqClientBenchmarkTest extends AbstractIntegrationTest {
         public void call(Throwable t1) {
           errorCount.incrementAndGet();
           incrementCount(count, startTime, numberOfRuns);
+          t1.printStackTrace();
           // super.call(t1);
         }
       });

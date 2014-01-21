@@ -44,7 +44,7 @@
 
     <dependency>
       <groupId>org.glassfish.jersey.connectors</groupId>
-      <artifactId>jersey-jetty-connector</artifactId>
+      <artifactId>jersey-grizzly-connector</artifactId>
     </dependency>
 
     <!-- Jackson -->

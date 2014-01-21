@@ -14,7 +14,7 @@ import javax.ws.rs.ext.MessageBodyReader;
 import javax.ws.rs.ext.MessageBodyWriter;
 
 import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.jetty.connector.JettyConnectorProvider;
+import org.glassfish.jersey.grizzly.connector.GrizzlyConnectorProvider;
 
 import rx.Observable;
 import rx.Observable.OnSubscribeFunc;
@@ -34,7 +34,7 @@ public class RqClient implements QueueService, AutoCloseable {
 
   public RqClient(String baseUri) {
     client = ClientBuilder.newClient(
-        new ClientConfig().connectorProvider(new JettyConnectorProvider()).register(JacksonJaxbJsonProvider.class,
+        new ClientConfig().connectorProvider(new GrizzlyConnectorProvider()).register(JacksonJaxbJsonProvider.class,
             MessageBodyReader.class, MessageBodyWriter.class)).register(ObjectMapperProvider.class);
     baseWebTarget = client.target(baseUri);
   }
